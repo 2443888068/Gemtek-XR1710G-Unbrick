@@ -21,7 +21,7 @@ XR1710G 常见两种砖：
 | 情况 | 现象 | 本项目的解法 |
 |---|---|---|
 | **bootloader 坏了** | 完全不开机、串口无输出 | X 模式两阶段镜像（已含 BL1/BL2/BL31/U-Boot + 全套证书） |
-| **BL31 坏了** | 开机设备报错: ERROR:   BL2: Failed to load image id 3 (-80) |
+| **BL31 坏了** | 开机设备报错: ERROR:BL2: Failed to load image id 3 (-80) |
 | **dsd 分区炸了** | 能开机但 MAC 全 0 / 序列号丢失 / WiFi 起不来 | 单文件 HTML 生成器，含同型号校准模板 |
 
 两种都不需要你事先备份过。
@@ -30,7 +30,7 @@ XR1710G 常见两种砖：
 
 ## 快速开始
 
-### 情况一：bootloader 坏了（X 模式两阶段） BL31坏了也适用
+### 情况一：bootloader 坏了（X 模式两阶段） 或 ERROR:BL2: Failed to load image id 3 (-80)
 
 ```
 1. 断电，按住 RESET 上电，串口 115200
