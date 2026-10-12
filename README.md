@@ -45,7 +45,14 @@ XR1710G 常见两种砖：
 
 ### 情况二：dsd 炸了（生成出厂数据）
 
-双击打开 `tools/DSD-Generator-CAL.html`（浏览器直接跑，无需安装任何东西）：
+双击打开 以下链接 直接在浏览器里打开（无需下载）：
+
+- [DSD-Generator-CAL.html](https://你的用户名.github.io/Gemtek-XR1710G-Unbrick/tools/DSD-Generator-CAL.html) — 推荐
+- [DSD-Generator-NoBackup.html](https://你的用户名.github.io/Gemtek-XR1710G-Unbrick/tools/DSD-Generator-NoBackup.html)
+- [DSD-Generator-Full.html](https://你的用户名.github.io/Gemtek-XR1710G-Unbrick/tools/DSD-Generator-Full.html)
+
+
+
 
 1. 默认什么都不用改，直接点 **生成并下载**
 2. 会下载 `dsd_XXXX.bin` 和 `uenv_XXXX.bin`
