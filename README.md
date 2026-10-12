@@ -47,9 +47,9 @@ XR1710G 常见两种砖：
 
 双击打开 以下链接 直接在浏览器里打开（无需下载）：
 
-- [DSD-Generator-CAL.html](https://2443888068.github.io/Gemtek-XR1710G-Unbrick/tools/DSD-Generator-CAL.html) — 推荐
-- [DSD-Generator-NoBackup.html](https://2443888068.github.io/Gemtek-XR1710G-Unbrick/tools/DSD-Generator-NoBackup.html)
-- [DSD-Generator-Full.html](https://2443888068.github.io/Gemtek-XR1710G-Unbrick/tools/DSD-Generator-Full.html)
+- [DSD-Generator-CAL.html](https://2443888068.github.io/Gemtek-XR1710G-Unbrick/docs/DSD-Generator-CAL.html) — 推荐
+- [DSD-Generator-NoBackup.html](https://2443888068.github.io/Gemtek-XR1710G-Unbrick/docs/DSD-Generator-NoBackup.html)
+- [DSD-Generator-Full.html](https://2443888068.github.io/Gemtek-XR1710G-Unbrick/docs/DSD-Generator-Full.html)
 
 
 
