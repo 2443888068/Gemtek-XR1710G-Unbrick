@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>XR1710G — DSD / uenv 生成器</title>
+<style>
+  :root{
+    --bg:#0f1117; --panel:#171a23; --panel2:#1e222d; --line:#2a2f3d;
+    --fg:#e6e9f0; --dim:#98a0b3; --accent:#4c9aff; --ok:#37c97a; --warn:#ffb020; --err:#ff5c5c;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--fg);
+       font:14px/1.5 "Segoe UI","Microsoft YaHei",system-ui,sans-serif}
+  header{padding:18px 24px;border-bottom:1px solid var(--line);
+         background:linear-gradient(180deg,#1b1f2a,#14171f)}
+  header h1{margin:0;font-size:18px;font-weight:600}
+  header p{margin:4px 0 0;color:var(--dim);font-size:12px}
+  .wrap{display:grid;grid-template-columns:1fr 1fr;gap:16px;padding:16px 24px 40px;max-width:1280px}
+  @media(max-width:1100px){.wrap{grid-template-columns:1fr}}
+  section{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px}
+  section h2{margin:0 0 12px;font-size:14px;font-weight:600;color:var(--accent);
+             text-transform:uppercase;letter-spacing:.06em}
+  label{display:block;margin:10px 0 4px;font-size:12px;color:var(--dim)}
+  input,select{width:100%;padding:8px 10px;background:var(--panel2);color:var(--fg);
+               border:1px solid var(--line);border-radius:6px;font-family:ui-monospace,Consolas,monospace;
+               font-size:13px}
+  input:focus,select:focus{outline:none;border-color:var(--accent)}
+  input.bad{border-color:var(--err)}
+  .row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+  button{cursor:pointer;border:1px solid var(--line);background:var(--panel2);color:var(--fg);
+         padding:8px 14px;border-radius:6px;font-size:13px}
+  button:hover{border-color:var(--accent)}
+  button.primary{background:var(--accent);border-color:var(--accent);color:#08111f;font-weight:600}
+  button.primary:hover{filter:brightness(1.1)}
+  button.mini{padding:4px 8px;font-size:12px}
+  .hint{font-size:11px;color:var(--dim);margin-top:3px}
+  .actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
+  pre{background:#0b0d13;border:1px solid var(--line);border-radius:8px;padding:12px;
+      font-size:12px;max-height:340px;overflow:auto;white-space:pre-wrap;word-break:break-all}
+  .badge{display:inline-block;padding:1px 7px;border-radius:20px;font-size:11px;
+         background:var(--panel2);border:1px solid var(--line);color:var(--dim)}
+  .ok{color:var(--ok)} .warn{color:var(--warn)} .err{color:var(--err)}
+  table{width:100%;border-collapse:collapse;font-size:12px}
+  th,td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--line)}
+  th{color:var(--dim);font-weight:500}
+  td.mono{font-family:ui-monospace,Consolas,monospace}
+  .mode{display:flex;gap:8px;margin-bottom:6px}
+  .mode button{flex:1}
+  .mode button.active{border-color:var(--accent);color:var(--accent)}
+</style>
+</head>
+<body>
+<header>
+  <h1>XR1710G / Gemtek — DSD &amp; uenv 生成器</h1>
+  <p>写入位置：DSD → flash <code>0x400000</code>　·　uenv → flash <code>0x200000</code>　
+     ·　生成的文件可直接用 <code>flash write</code> 或 <code>mtd write</code> 写入</p>
+</header>
+
+<div class="wrap">
+  <!-- 左栏：参数 -->
+  <div>
+    <section>
+      <h2>① 网口 MAC</h2>
+      <div class="row">
+        <div>
+          <label>WAN MAC（wan_mac）</label>
+          <input id="wan" value="" placeholder="00:58:28:AA:BB:CC" spellcheck="false">
+        </div>
+        <div>
+          <label>LAN MAC（lan_mac）</label>
+          <input id="lan" value="" placeholder="00:58:28:AA:BB:CD" spellcheck="false">
+        </div>
+      </div>
+      <div class="row">
+        <div>
+          <label>MAC 前缀（OUI）</label>
+          <input id="oui" value="00:58:28" spellcheck="false">
+          <div class="hint">本机实测 OUI = Gemtek 00:58:28</div>
+        </div>
+        <div>
+          <label>&nbsp;</label>
+          <button id="btnRandom" style="width:100%">随机生成一组</button>
+        </div>
+      </div>
+      <div class="hint">LAN 建议 = WAN + 1（原机就是连号，驱动会以此推导各网口地址）</div>
+    </section>
+
+    <section>
+      <h2>② WiFi 参数</h2>
+      <div class="row">
+        <div>
+          <label>SSID（wifi_ssid）</label>
+          <input id="ssid" spellcheck="false">
+        </div>
+        <div>
+          <label>WPA 密码（wifi_passphrase）</label>
+          <input id="wpa" spellcheck="false">
+        </div>
+      </div>
+      <div class="row">
+        <div>
+          <label>访客网络密码（wifi_guest_passphrase）</label>
+          <input id="guest" spellcheck="false">
+        </div>
+        <div>
+          <label>WPS PIN（wifi_wps_pin）</label>
+          <input id="wps" spellcheck="false">
+        </div>
+      </div>
+      <div class="hint">
+        WiFi 网卡的 MAC <b>不在 DSD 文本里</b>：它由 LAN MAC 递推（通常是 LAN+1、LAN+2…），
+        所以只要 LAN MAC 填对，WiFi 地址就跟着对。
+      </div>
+    </section>
+
+    <section>
+      <h2>③ 整机信息</h2>
+      <div class="row">
+        <div>
+          <label>序列号（serial_number）</label>
+          <input id="serial" spellcheck="false">
+          <div class="hint">原机格式：XR1710G + 10 位数字</div>
+        </div>
+        <div>
+          <label>风扇型号（fan_id）</label>
+          <input id="fan" value="sunon_XR1710G" spellcheck="false">
+        </div>
+      </div>
+      <div class="row3">
+        <div>
+          <label>厂商（manufacturer）</label>
+          <input id="manu" value="Gemtek" spellcheck="false">
+        </div>
+        <div>
+          <label>管理用户名</label>
+          <input id="user" value="admin" spellcheck="false">
+        </div>
+        <div>
+          <label>管理密码</label>
+          <input id="pass" value="admin" spellcheck="false">
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>④ uenv 环境变量</h2>
+      <label>ethaddr（一般与 LAN MAC 一致）</label>
+      <input id="ethaddr" spellcheck="false">
+      <div class="row">
+        <div>
+          <label>ipaddr</label>
+          <input id="ipaddr" value="192.168.1.1" spellcheck="false">
+        </div>
+        <div>
+          <label>serverip</label>
+          <input id="serverip" value="192.168.1.10" spellcheck="false">
+        </div>
+      </div>
+      <label>bootcmd</label>
+      <input id="bootcmd" value="flash read 0x600000 0x100000 $loadaddr; bootm" spellcheck="false">
+      <div class="hint" id="uenvTplHint">未加载 uenv 模板 —— 将使用内置最小变量集合</div>
+      <div class="actions">
+        <button id="btnLoadDsd">载入现有 DSD…</button>
+        <button id="btnLoadEnv">载入 uenv 模板…</button>
+        <button id="btnLoadVendor" class="primary">载入 mtd0 备份（自动填全部）…</button>
+      </div>
+      <div class="hint">载入 mtd0 备份会从 <code>0x400000</code> 读 DSD、<code>0x200000</code> 读 uenv，
+        变量和头部标记原样沿用，最稳妥。</div>
+    </section>
+  </div>
+
+  <!-- 右栏：输出 -->
+  <div>
+    <section>
+      <h2>⑤ 生成</h2>
+      <div class="row">
+        <div>
+          <label>DSD 输出大小</label>
+          <select id="dsdsize">
+            <option value="32768" selected>32 KiB (0x8000) — 推荐</option>
+            <option value="8192">8 KiB (0x2000)</option>
+            <option value="27904">27,776 B (0x6C80，贴近原机长度)</option>
+            <option value="2097152">2 MiB (0x200000) — 整个分区</option>
+          </select>
+        </div>
+        <div>
+          <label>连号生成台数</label>
+          <input id="count" type="number" min="1" max="64" value="1">
+          <div class="hint">第 1 台用上面填的 MAC，之后每台 +2</div>
+        </div>
+      </div>
+      <div class="actions">
+        <button class="primary" id="btnGen">生成并下载</button>
+        <button id="btnPreview">刷新预览</button>
+      </div>
+      <div id="status" class="hint" style="margin-top:10px"></div>
+    </section>
+
+    <section>
+      <h2>⑥ 预览</h2>
+      <div id="preview"><span class="badge">点“刷新预览”查看将要写入的内容</span></div>
+    </section>
+
+    <section>
+      <h2>⑦ 校验</h2>
+      <div id="checks"><span class="badge">生成时自动执行</span></div>
+    </section>
+
+    <section>
+      <h2>⑧ 写入命令</h2>
+      <pre id="cmds">生成后显示</pre>
+    </section>
+  </div>
+</div>
+
+<script>
+"use strict";
+/* ============================ 常量（与实测 DSD 一致）============================ */
+const DSD_ORDER = ["admin_password","admin_username","wan_mac","lan_mac","serial_number",
+                   "manufacturer","fan_id","wifi_guest_passphrase","wifi_passphrase",
+                   "wifi_ssid","wifi_wps_pin"];
+const DSD_KEY_ATTR = {wan_mac:"wan", lan_mac:"lan", serial_number:"serial",
+                      manufacturer:"manu", fan_id:"fan", wifi_ssid:"ssid",
+                      wifi_passphrase:"wpa", wifi_guest_passphrase:"guest",
+                      wifi_wps_pin:"wps", admin_username:"user", admin_password:"pass"};
+const TAIL_MARK = new Uint8Array([0xcf,0xd4,0xdb,0xe6,0xed,0xf7,0x01,0x00]);
+const BOOT_ENV_OFF = 0x80000, UENV_OFF = 0x200000, DSD_OFF = 0x400000, UENV_BLOCK = 0x400;
+const PH = 0x1000;                       /* DSD 二进制段起始 */
+const CAL_OFF = 0x5000, CAL_LEN = 0xD72; /* 原机 WiFi 校准/数据段（0x5000-0x5D72）*/
+
+/* ============================ 工具 ============================ */
+const $ = id => document.getElementById(id);
+const hex2 = n => n.toString(16).padStart(2,"0");
+function macToBytes(s){
+  const p = s.trim().split(/[:\-]/).map(x=>x.trim());
+  if(p.length!==6) return null;
+  const b = new Uint8Array(6);
+  for(let i=0;i<6;i++){
+    if(!/^[0-9a-fA-F]{1,2}$/.test(p[i])) return null;
+    b[i] = parseInt(p[i],16);
+  }
+  return b;
+}
+const bytesToMac = b => Array.from(b).map(hex2).join(":").toUpperCase();
+function addMac(b, n){
+  const out = Uint8Array.from(b);
+  let v = 0n;
+  for(const x of out) v = (v<<8n) | BigInt(x);
+  v += BigInt(n);
+  for(let i=5;i>=0;i--){ out[i] = Number(v & 0xffn); v >>= 8n; }
+  return out;
+}
+const randInt = n => Math.floor(Math.random()*n);
+function genMacFromOui(oui){
+  const p = oui.trim().split(/[:\-]/).map(x=>parseInt(x,16));
+  while(p.length<6) p.push(randInt(256));
+  const b = Uint8Array.from(p.slice(0,6));
+  b[0] &= 0xFE;   /* 单播 */
+  b[0] &= 0xFD;   /* 全局唯一（保持 OUI 语义）*/
+  return b;
+}
+function randKey(n=11){
+  const A = "abcdefghijkmnpqrstuvwxyz23456789";
+  let s = "Bright";
+  for(let i=0;i<n;i++) s += A[randInt(A.length)];
+  return s;
+}
+const randSerial = () => "XR1710G" + Array.from({length:10},()=>randInt(10)).join("");
+const randSsid = () => "Brightspeed_" + Array.from({length:6},
+        ()=>"ABCDEFGHJKLMNPQRSTUVWXYZ23456789"[randInt(32)]).join("");
+
+/* ============================ DSD 组装 ============================ */
+function buildDsd(kv, size, cal){
+  const lines = [];
+  for(const k of DSD_ORDER) if(kv[k]!==undefined && kv[k]!=="") lines.push(k+"="+kv[k]);
+  for(const k of Object.keys(kv))
+    if(!DSD_ORDER.includes(k) && kv[k]!=="") lines.push(k+"="+kv[k]);
+  const text = new TextEncoder().encode(lines.join("\n")+"\n");
+  const buf = new Uint8Array(size).fill(0xFF);
+  buf.set(text.subarray(0, Math.min(text.length, PH)), 0);
+
+  /* 二进制段：优先沿用原机校准数据 */
+  let off = PH;
+  if(cal && cal.length){
+    const n = Math.min(cal.length, size - PH - 0x40);
+    buf.set(cal.subarray(0, n), off);
+    off += n;
+  }
+  /* 尾部标记（原机出现两次） */
+  const t = off + 0x10;
+  if(t + TAIL_MARK.length*2 + 0x10 <= size){
+    buf.set(TAIL_MARK, t);
+    buf.set(TAIL_MARK, t + 0x10);
+  }
+  return {buf, textLen: text.length, calLen: off - PH};
+}
+
+/* ============================ uenv 组装 ============================ */
+function parseEnvBlock(data){
+  const body = data.subarray(4);
+  let end = body.length;
+  const z = body.indexOf(0);
+  /* 取到连续两个 0 或全部有效 kv */
+  let i = 0, items = [], cur = [];
+  while(i < body.length){
+    const v = body[i];
+    if(v === 0){
+      if(cur.length === 0) break;
+      items.push(new Uint8Array(cur)); cur = [];
+    } else cur.push(v);
+    i++;
+  }
+  const kv = [];
+  for(const it of items){
+    const s = new TextDecoder("latin1").decode(it);
+    const p = s.indexOf("=");
+    if(p > 0) kv.push([s.slice(0,p), s.slice(p+1)]);
+  }
+  return {header: data.subarray(0,4), kv};
+}
+function buildEnvBlock(kv, header){
+  const parts = kv.map(([k,v]) => k+"="+v);
+  const raw = new TextEncoder().encode(parts.join("\0")+"\0");
+  const blk = new Uint8Array(UENV_BLOCK);
+  if(header) blk.set(header.subarray(0,4),0);
+  if(4+raw.length > UENV_BLOCK) throw new Error("环境变量超出 0x400 字节 (需要 "+(4+raw.length)+")");
+  blk.set(raw, 4);
+  return blk;
+}
+
+/* ============================ 状态 ============================ */
+let CAL = null;         /* 原机 WiFi 校准段 */
+let ENV_TPL = null;     /* uenv {header, kv} */
+let VENDOR = null;      /* mtd0 备份字节 */
+
+/* ============================ 表单读写 ============================ */
+function formToKv(){
+  return {
+    wan_mac:$("wan").value.trim(), lan_mac:$("lan").value.trim(),
+    serial_number:$("serial").value.trim(), manufacturer:$("manu").value.trim(),
+    fan_id:$("fan").value.trim(), wifi_ssid:$("ssid").value.trim(),
+    wifi_passphrase:$("wpa").value.trim(),
+    wifi_guest_passphrase:$("guest").value.trim(),
+    wifi_wps_pin:$("wps").value.trim(),
+    admin_username:$("user").value.trim(), admin_password:$("pass").value.trim(),
+  };
+}
+function kvToForm(kv){
+  for(const k in DSD_KEY_ATTR){
+    const el = $(DSD_KEY_ATTR[k]);
+    if(el && kv[k]!==undefined) el.value = kv[k];
+  }
+}
+
+/* ============================ 校验 ============================ */
+function validate(kv){
+  const out = [];
+  const w = macToBytes(kv.wan_mac), l = macToBytes(kv.lan_mac);
+  if(!w) out.push(["err","WAN MAC 格式错误"]); else {
+    if(w[0] & 1) out.push(["err","WAN MAC 是组播地址（最低位为 1），非法"]);
+    else out.push(["ok","WAN MAC 格式正确："+bytesToMac(w)]);
+    if((w[0]&0xFC) !== 0x00) out.push(["hint","WAN MAC 未使用原机 OUI 00:58:28"]);
+  }
+  if(!l) out.push(["err","LAN MAC 格式错误"]); else {
+    out.push(["ok","LAN MAC 格式正确："+bytesToMac(l)]);
+    if(w && !(l[4]===w[4] && l[5]===((w[5]+1)&0xff)))
+      out.push(["warn","LAN 不是 WAN+1（原机为连号，建议改为 "+bytesToMac(addMac(w,1))+"）"]);
+  }
+  if(!/^XR1710G\d{10}$/.test(kv.serial_number||""))
+    out.push(["warn","序列号不是 XR1710G+10位数字 的原机格式"]);
+  else out.push(["ok","序列号格式正确"]);
+  if(!/^\d{8}$/.test(kv.wifi_wps_pin||"")) out.push(["warn","WPS PIN 建议 8 位数字"]);
+  if(!(kv.wifi_passphrase||"").length) out.push(["err","WPA 密码为空"]);
+  else if(kv.wifi_passphrase.length < 8) out.push(["warn","WPA 密码少于 8 位，部分客户端会拒绝"]);
+  else out.push(["ok","WPA 密码长度合规 ("+kv.wifi_passphrase.length+")"]);
+  if(!(kv.wifi_ssid||"").length) out.push(["warn","SSID 为空"]);
+  if(!CAL) out.push(["warn","未载入原机校准段：WiFi 校准数据将为空，无线性能不保证"]);
+  else out.push(["ok","已沿用原机校准段 "+CAL.length+" 字节"]);
+  return out;
+}
+function renderChecks(list){
+  $("checks").innerHTML = list.map(([lv,t])=>{
+    const cls = lv==="ok"?"ok":lv==="warn"?"warn":lv==="err"?"err":"";
+    const ic  = lv==="ok"?"✓":lv==="warn"?"!":lv==="err"?"✕":"·";
+    return `<div class="${cls}" style="margin:3px 0">${ic} ${t}</div>`;
+  }).join("");
+}
+
+/* ============================ 预览 ============================ */
+function updatePreview(){
+  const kv = formToKv();
+  renderChecks(validate(kv));
+  const size = parseInt($("dsdsize").value,10);
+  const {buf,textLen,calLen} = buildDsd(kv, size, CAL);
+  const text = new TextDecoder().decode(buf.subarray(0,textLen));
+  let html = `<div class="hint">DSD ${size} 字节　文本段 ${textLen} B　校准段 ${calLen} B</div>`;
+  html += `<table><tr><th>key</th><th>value</th></tr>`;
+  for(const line of text.trim().split("\n")){
+    const p = line.indexOf("=");
+    html += `<tr><td class="mono">${line.slice(0,p)}</td><td class="mono">${line.slice(p+1)}</td></tr>`;
+  }
+  html += `</table>`;
+  html += `<div class="hint" style="margin-top:10px">uenv：${
+      ENV_TPL ? ENV_TPL.kv.length+" 个变量（沿用模板头部 "+Array.from(ENV_TPL.header).map(hex2).join(" ")+"）"
+              : "内置最小集合"}</div>`;
+  $("preview").innerHTML = html;
+  return {kv,size,buf};
+}
+
+/* ============================ 下载 ============================ */
+function download(name, bytes){
+  const blob = new Blob([bytes], {type:"application/octet-stream"});
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = name;
+  document.body.appendChild(a); a.click();
+  setTimeout(()=>{URL.revokeObjectURL(a.href); a.remove();}, 1000);
+}
+
+function doGenerate(){
+  const {kv,size,buf} = updatePreview();
+  const checks = validate(kv);
+  if(checks.some(([lv])=>lv==="err")){
+    $("status").innerHTML = '<span class="err">存在错误，已中止生成，请修正后再试</span>';
+    return;
+  }
+  const n = Math.max(1, Math.min(64, parseInt($("count").value,10)||1));
+  const base = macToBytes(kv.wan_mac);
+  let names = [];
+  for(let i=0;i<n;i++){
+    const wan = addMac(base, i*2), lan = addMac(base, i*2+1);
+    const one = Object.assign({}, kv, {
+      wan_mac: bytesToMac(wan), lan_mac: bytesToMac(lan),
+      serial_number: (i===0 && /^XR1710G\d{10}$/.test(kv.serial_number)) ? kv.serial_number : randSerial(),
+      wifi_ssid:     (i===0 && kv.wifi_ssid) ? kv.wifi_ssid : randSsid(),
+      wifi_passphrase: (i===0 && kv.wifi_passphrase) ? kv.wifi_passphrase : randKey(11),
+      wifi_guest_passphrase: (i===0 && kv.wifi_guest_passphrase) ? kv.wifi_guest_passphrase : randKey(11),
+      wifi_wps_pin: String(randInt(100000000)).padStart(8,"0"),
+    });
+    if(i>0) one.wifi_wps_pin = String(randInt(100000000)).padStart(8,"0");
+
+    const tag = one.lan_mac.replace(/:/g,"");
+    const d = buildDsd(one, size, CAL);
+    download("dsd_"+tag+".bin", d.buf);
+    names.push("dsd_"+tag+".bin");
+
+    /* uenv：ethaddr 跟 LAN MAC */
+    let envKv;
+    if(ENV_TPL){
+      envKv = ENV_TPL.kv.filter(([k])=>k!=="ethaddr");
+      envKv.push(["ethaddr", one.lan_mac]);
+      /* 保留模板里其它字段顺序：把 ethaddr 放回原来位置 */
+      const idx = ENV_TPL.kv.findIndex(([k])=>k==="ethaddr");
+      if(idx>=0){ envKv = ENV_TPL.kv.map(([k,v])=> k==="ethaddr" ? [k, one.lan_mac] : [k,v]); }
+    }else{
+      envKv = [["baudrate","115200"],["bootdelay","4"],
+               ["bootcmd",$("bootcmd").value.trim()],
+               ["ipaddr",$("ipaddr").value.trim()],["serverip",$("serverip").value.trim()],
+               ["ethaddr",one.lan_mac],["stdin","serial"],["stdout","serial"],["stderr","serial"]];
+    }
+    const e = buildEnvBlock(envKv, ENV_TPL ? ENV_TPL.header : null);
+    download("uenv_"+tag+".bin", e);
+    names.push("uenv_"+tag+".bin");
+  }
+  $("status").innerHTML = '<span class="ok">已生成 '+names.length+' 个文件：</span><br>'+
+       names.map(x=>'<span class="badge">'+x+'</span>').join(" ");
+  $("cmds").textContent =
+`# 文件先传到 0x81800000（TFTP / XMODEM）
+# DSD -> flash 0x400000
+flash erase 0x400000 0x8000
+flash write 0x400000 0x8000 0x81800000
+
+# uenv -> flash 0x200000
+flash erase 0x200000 0x400
+flash write 0x200000 0x400 0x81800000
+
+# ImmortalWrt 下（先用 cat /proc/mtd 确认分区号）
+mtd write dsd_XXXX.bin  /dev/mtdX
+mtd write uenv_XXXX.bin /dev/mtdY`;
+}
+
+/* ============================ 载入文件 ============================ */
+function readFile(input, cb){
+  const f = input.files[0]; if(!f) return;
+  const r = new FileReader();
+  r.onload = () => cb(new Uint8Array(r.result), f.name);
+  r.readAsArrayBuffer(f);
+}
+function loadDsdBytes(bytes){
+  let text = "";
+  for(let i=0;i<Math.min(bytes.length,0x600);i++){
+    if(bytes[i]===0) break;
+    text += String.fromCharCode(bytes[i]);
+  }
+  const kv = {};
+  for(const line of text.split("\n")){
+    const p = line.indexOf("="); if(p<=0) continue;
+    kv[line.slice(0,p)] = line.slice(p+1);
+  }
+  kvToForm(kv);
+  /* 校准段 */
+  const rest = bytes.subarray(PH).filter(x=>x!==0xFF);
+  if(rest.length) CAL = bytes.subarray(PH, Math.max(PH+CAL_LEN, bytes.length));
+  updatePreview();
+}
+function loadMtd0(bytes){
+  VENDOR = bytes;
+  const dsd = bytes.subarray(DSD_OFF, DSD_OFF+0x8000);
+  loadDsdBytes(dsd);
+  const env = bytes.subarray(UENV_OFF, UENV_OFF+UENV_BLOCK);
+  if(env.some(x=>x!==0xFF) && env.some(x=>x!==0)){
+    ENV_TPL = parseEnvBlock(env);
+    $("uenvTplHint").innerHTML = '已载入 uenv 模板：'+ENV_TPL.kv.length+
+      ' 个变量，头部 '+Array.from(ENV_TPL.header).map(hex2).join(" ");
+  }
+  const b = bytes.subarray(BOOT_ENV_OFF, BOOT_ENV_OFF+UENV_BLOCK);
+  $("status").innerHTML = '<span class="ok">已从 mtd0 备份填入 DSD + uenv（含校准段）</span>';
+  updatePreview();
+}
+
+/* ============================ 事件绑定 ============================ */
+$("btnRandom").onclick = () => {
+  const oui = $("oui").value.trim() || "00:58:28";
+  let b = genMacFromOui(oui); b[5] &= 0xFE;
+  $("wan").value = bytesToMac(b);
+  $("lan").value = bytesToMac(addMac(b,1));
+  $("ethaddr").value = $("lan").value;
+  if(!$("serial").value) $("serial").value = randSerial();
+  if(!$("ssid").value) $("ssid").value = randSsid();
+  if(!$("wpa").value) $("wpa").value = randKey(11);
+  if(!$("guest").value) $("guest").value = randKey(11);
+  if(!$("wps").value) $("wps").value = String(randInt(100000000)).padStart(8,"0");
+  updatePreview();
+};
+$("btnPreview").onclick = updatePreview;
+$("btnGen").onclick = doGenerate;
+$("dsdsize").onchange = updatePreview;
+$("lan").addEventListener("input", () => { $("ethaddr").value = $("lan").value; });
+for(const id of ["wan","lan","serial","ssid","wpa","guest","wps","user","pass","manu","fan"])
+  $(id).addEventListener("input", () => { const kv=formToKv(); renderChecks(validate(kv)); });
+
+const fi = document.createElement("input"); fi.type="file"; fi.accept=".bin";
+$("btnLoadDsd").onclick = () => { fi.onchange=()=>readFile(fi, loadDsdBytes); fi.value=""; fi.click(); };
+$("btnLoadEnv").onclick = () => { fi.onchange=()=>readFile(fi,(b)=>{ ENV_TPL=parseEnvBlock(b);
+    $("uenvTplHint").innerHTML='已载入 uenv 模板：'+ENV_TPL.kv.length+' 个变量';
+    updatePreview(); }); fi.value=""; fi.click(); };
+$("btnLoadVendor").onclick = () => { fi.onchange=()=>readFile(fi, loadMtd0); fi.value=""; fi.click(); };
+
+/* 首次进入给一组随机值 */
+$("btnRandom").click();
+</script>
+</body>
+</html>

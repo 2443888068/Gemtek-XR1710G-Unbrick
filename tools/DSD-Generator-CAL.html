@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>XR1710G — DSD 生成器（含 WiFi 校准，无需备份）</title>
+<style>
+  :root{--bg:#0f1117;--panel:#171a23;--panel2:#1e222d;--line:#2a2f3d;--fg:#e6e9f0;
+        --dim:#98a0b3;--accent:#4c9aff;--ok:#37c97a;--warn:#ffb020;--err:#ff5c5c}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--fg);
+       font:14px/1.55 "Segoe UI","Microsoft YaHei",system-ui,sans-serif}
+  header{padding:16px 22px;border-bottom:1px solid var(--line);background:linear-gradient(180deg,#1b1f2a,#14171f)}
+  header h1{margin:0;font-size:17px}
+  header p{margin:5px 0 0;color:var(--dim);font-size:12px}
+  .wrap{max-width:1200px;margin:0 auto;padding:16px 22px 48px;
+        display:grid;grid-template-columns:1.1fr .9fr;gap:16px}
+  @media(max-width:1000px){.wrap{grid-template-columns:1fr}}
+  section{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:15px;margin-bottom:14px}
+  h2{margin:0 0 10px;font-size:13px;color:var(--accent);text-transform:uppercase;letter-spacing:.06em}
+  label{display:block;margin:9px 0 4px;font-size:12px;color:var(--dim)}
+  input,select{width:100%;padding:8px 10px;background:var(--panel2);color:var(--fg);
+    border:1px solid var(--line);border-radius:6px;font-family:ui-monospace,Consolas,monospace;font-size:13px}
+  input:focus,select:focus{outline:none;border-color:var(--accent)}
+  .row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  button{cursor:pointer;border:1px solid var(--line);background:var(--panel2);color:var(--fg);
+    padding:9px 15px;border-radius:6px;font-size:13px}
+  button:hover{border-color:var(--accent)}
+  button.primary{background:var(--accent);border-color:var(--accent);color:#08111f;font-weight:700}
+  button.big{width:100%;padding:14px;font-size:15px}
+  .hint{font-size:11.5px;color:var(--dim);margin-top:4px}
+  .note{background:#1a1d27;border-left:3px solid var(--accent);padding:10px 12px;border-radius:0 6px 6px 0;
+        font-size:12.5px;color:#c8cfdd;margin:10px 0}
+  .warnbox{background:#241d13;border-left:3px solid var(--warn);padding:10px 12px;border-radius:0 6px 6px 0;
+        font-size:12.5px;color:#f0d9a8;margin:10px 0}
+  table{width:100%;border-collapse:collapse;font-size:12px}
+  th,td{text-align:left;padding:5px 7px;border-bottom:1px solid var(--line)}
+  th{color:var(--dim);font-weight:500}
+  td.mono{font-family:ui-monospace,Consolas,monospace}
+  pre{background:#0b0d13;border:1px solid var(--line);border-radius:8px;padding:12px;font-size:12px;
+      white-space:pre-wrap;word-break:break-all;max-height:280px;overflow:auto}
+  .ok{color:var(--ok)}.warn{color:var(--warn)}.err{color:var(--err)}
+  .badge{display:inline-block;padding:1px 8px;border-radius:20px;font-size:11px;background:var(--panel2);
+         border:1px solid var(--line);color:var(--dim);margin:2px 3px 0 0}
+  .steps{counter-reset:s;font-size:12.5px}
+  .steps div{counter-increment:s;padding:5px 0 5px 26px;position:relative;color:#cfd6e4}
+  .steps div::before{content:counter(s);position:absolute;left:0;top:5px;width:18px;height:18px;
+    border-radius:50%;background:var(--panel2);border:1px solid var(--line);color:var(--accent);
+    font-size:11px;text-align:center;line-height:17px}
+</style>
+</head>
+<body>
+<header>
+  <h1>XR1710G — DSD 生成器（<b>内置 WiFi 校准模板，无需任何备份</b>）</h1>
+  <p>适用于：DSD 被误擦 / 换芯片 / 二手砖机。校准数据取自同型号 XR1710G，已脱敏（无 MAC、无序列号、无密码）</p>
+</header>
+
+<div class="wrap">
+  <div>
+    <section>
+      <h2>① 这台机器的身份（自动生成，可改）</h2>
+      <div class="note">
+        不知道填什么就<b>别改</b>，直接点生成。生成的文件 = 内置校准模板（二进制段原样保留）
+        + 你的 MAC/序列号/WiFi 参数（写进文本段）。
+      </div>
+      <label>MAC 前缀（OUI）</label>
+      <select id="ouiPreset">
+        <option value="00:58:28" selected>00:58:28 — Gemtek（XR1710G 原厂）</option>
+        <option value="custom">自定义…</option>
+      </select>
+      <input id="oui" value="00:58:28" style="margin-top:6px" spellcheck="false">
+      <div class="row">
+        <div><label>WAN MAC</label><input id="wan" spellcheck="false"></div>
+        <div><label>LAN MAC（= WAN + 1）</label><input id="lan" spellcheck="false"></div>
+      </div>
+      <div class="row">
+        <div><label>序列号</label><input id="serial" spellcheck="false"></div>
+        <div><label>生成台数（连号）</label><input id="count" type="number" min="1" max="99" value="1"></div>
+      </div>
+      <label>WiFi 名称 SSID</label><input id="ssid" spellcheck="false">
+      <div class="row">
+        <div><label>WiFi 密码</label><input id="wpa" spellcheck="false"></div>
+        <div><label>访客 WiFi 密码</label><input id="guest" spellcheck="false"></div>
+      </div>
+      <div class="row">
+        <div><label>WPS PIN（8 位）</label><input id="wps" spellcheck="false"></div>
+        <div><label>&nbsp;</label><button id="btnRand" style="width:100%">重新随机一套</button></div>
+      </div>
+    </section>
+
+    <section>
+      <h2>② 生成</h2>
+      <button class="primary big" id="btnGen">生成 DSD + uenv（直接下载）</button>
+      <div id="status" class="hint" style="margin-top:9px"></div>
+      <div class="hint" id="tmplInfo"></div>
+    </section>
+
+    <section>
+      <h2>③ 完整恢复流程</h2>
+      <div class="steps">
+        <div>X 模式刷 bootloader：按住 RESET 上电 → 按 <b>X</b> → 出现 <code>CCCCC</code> →
+            发 <b>1_stage1_preloader.bin</b></div>
+        <div>再断电重启 → 提示 <code>Press x to load BL31 + U-Boot FIP</code> 时按 <b>x</b> →
+            发 <b>2_stage2_bl31_uboot.bin</b></div>
+        <div>把本页生成的 <b>dsd_*.bin</b> 传到 <code>0x81800000</code></div>
+        <div><code>flash erase 0x400000 0x8000</code> → <code>flash write 0x400000 0x8000 0x81800000</code></div>
+        <div>同样方式写 uenv：<code>flash erase 0x200000 0x400</code> →
+            <code>flash write 0x200000 0x400 0x81800000</code></div>
+        <div>重启，进系统检查 MAC、WiFi 是否正常</div>
+      </div>
+    </section>
+  </div>
+
+  <div>
+    <section>
+      <h2>生成内容预览</h2>
+      <div id="preview"><span class="badge">正在准备…</span></div>
+    </section>
+    <section>
+      <h2>写入命令</h2>
+      <pre id="cmds">生成后显示</pre>
+    </section>
+    <section>
+      <h2>这个工具做了什么</h2>
+      <table>
+        <tr><th>项目</th><th>状态</th></tr>
+        <tr><td>DSD 文本段（MAC/序列号/WiFi）</td><td class="ok">按你的输入写入</td></tr>
+        <tr><td>WiFi 校准段（0x5000 起）</td><td class="ok">内置同型号模板，原样保留</td></tr>
+        <tr><td>尾部结构标记</td><td class="ok">保留</td></tr>
+        <tr><td>加密段（0x1000，PKCS#7×3）</td><td class="warn">留空 —— 见下方说明</td></tr>
+        <tr><td>bootloader（BL1/BL2/BL31/U-Boot）</td><td class="ok">X 模式两阶段文件已含</td></tr>
+      </table>
+      <div class="warnbox">
+        <b>关于 0x1000 加密段：</b>原厂是三个 PKCS#7 encryptedData 容器
+        （PBES2+PBKDF2+AES-128-GCM），逐台 salt/IV 不同。它不是签名、不参与校验。
+        本工具把它留空（0xFF）。<br>
+        若实测发现设备必须要它，可以改用整份原厂 DSD 当模板（见 <code>DSD加密段说明.txt</code>）。
+      </div>
+      <div class="note">
+        <b>校准是否通用？</b>同一型号硬件设计相同，校准通常可通用；但若原厂按 MAC 做了绑定，
+        换机后可能不生效。第一次给别的机器用时，建议做一次实测：写入后开机看 WiFi 能否正常起、
+        发射功率是否合理（<code>iw dev</code> / <code>iw phy</code>）。
+      </div>
+    </section>
+  </div>
+</div>
+
+<script>
+"use strict";
+/* ===== 内置校准模板（zlib 压缩 + base64）===== */
+const TMPL_B64 = `
+eNrtmEtsG0UYxz8njkNeJLFaHjmAGkIJbYOcNo4CUlNjqISoKgEHkMqBCFVVJZCoIFBBkbwPe3ftIgEiB8oJ6JkLBzgBOzNrDojg
+A3VRMRKy0nBAyikSVZTG4Zv1o34lTkLdROT7jWfm+8/Mzmtnd2a9ukoQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQ
+BEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQRLP56N02gO6n9k/1uWE/ENtK/0NDQw8PHew6ERwcBFAmVIAhL4DHM0pzUxe5av00DTuB
+Lz9XL3/xMRTd7mQSRmAcghCoSk+lqhL+gJ9hZsd1vwXxetvLf+i91f5eZKDEfSVceb/Elb0d7Z3l/u62Dv9WfbfvroLv8Hf5Nq97
+fF0l3+3r9j+ZKI75p9380P4NLQCB88fKIncdlKIm5Cn5xB0RVfW6yVFDfuGgybivp6dnJy4XfD0oEV81SgR8a4BZSCTywNBwYOKo
+52j4mZMvnJqK7Ns/Mvb4ZPi45/izz7146pXTZwcfDQSfOCYTTjz/0suvnnltvV7M3bbx/AkZGS2vU+Qm+twdm+BvCr4CB77VzaY0
+l4NsDoPrOViB7Aq0wtxXZblTkxMVpfFbofctDD39F8CH9nRNfYl3DhUsL3gmWjFsyXilfbW1pqx+/sAWerwKud++w7j9dybtK1/X
+lHj/zQcL1j8A6Rm4AXDtkpS/flhTdvrsQKlez9UZGV77TN7uOmXPnbmnYC1DbuUSzhisXkZ79eanNWVfP72nYO1xvWxlAPbiFXtr
+yr537rFNzsH09bfn3pi/kC3q8PdhG/0PYYaxCPOwE/4RlY1O2jLHzW3GCgqxkF3mWCm+ZXF0IuS4jpdyeb7Etr/SFEVJJpOpVCqT
+yczPzy8uLoZCIcbY7OxsOp3OZrMLCwtLS0ttbW0bSVxeXr6Tif918MHg4bGxUQyD40fwV5N/5PBoIDiW99JuVF/qSuavhRueNTXx
+P2fcdSMwXJWeTsvQLt/TnOQn297dQweQR27p4YN5ip0UXAjhOA5nNuMAnNucM1XgSISmabaNliZU2+bS4lw4XDRuVDi2YLZtaypW
+wWwuNKbqtq5pOqIKrEtWqKqoVdvh3JFlUWi2qjVxLnQ9GotVGHnLMCyrKSrp4JTKycUIp6JkgBCMgRw+lNKiUcNwKlWplFR4myrl
+elduXFW3sbZy5GCE4Nwdn2nG42iXKY7vb4bCMKRi7l4cLcrqK7eq6rTRiLI+VElc4BralhWPX7yoaZuSsiqtQHlrlvGBuwoEUxXG
+VMbcaVHR0JjCXFvhXFMwXRFcQVuVs8irNuxNUXE+TcQNlTtJbE92N2GqSUUzLZM5SjRhmVF83Dne+ljcMq0Yd/Ro3IgyRTfi8USM
+4ePNsE9m3LJMxWGKZRhMMD1mmDEVh6NhW1ED1zY+zsyImjoOpsHBo+ls4PCz4bIEsduoe+Rfb2tfd09KJvH1ggnu7oIfHZXSraCr
+Ezp94F/rz5+nkX0dXij69kgk0uvv8yqRCPR3Q0F35nXn7T//N/oGqH/+/xf+uIjh
+`;
+
+const DSD_ORDER=["admin_password","admin_username","wan_mac","lan_mac","serial_number",
+  "manufacturer","fan_id","wifi_guest_passphrase","wifi_passphrase","wifi_ssid","wifi_wps_pin"];
+const PH=0x1000, DSD_SIZE=0x8000, UENV_BLOCK=0x400;
+const $=id=>document.getElementById(id);
+const h2=n=>n.toString(16).padStart(2,"0");
+const RI=n=>Math.floor(Math.random()*n);
+
+let TEMPLATE=null;
+async function loadTemplate(){
+  const raw=atob(TMPL_B64.replace(/\s/g,""));
+  const bin=new Uint8Array(raw.length);
+  for(let i=0;i<raw.length;i++) bin[i]=raw.charCodeAt(i);
+  if(typeof DecompressionStream!=="undefined"){
+    const ds=new DecompressionStream("deflate");
+    const w=ds.writable.getWriter(); w.write(bin); w.close();
+    const buf=await new Response(ds.readable).arrayBuffer();
+    TEMPLATE=new Uint8Array(buf);
+  }else{
+    TEMPLATE=bin;   /* 现代浏览器都支持 DecompressionStream；不支持时给出提示 */
+  }
+  $("tmplInfo").innerHTML="内置校准模板 "+TEMPLATE.length+" 字节，已就绪";
+  fillRandom();
+}
+
+function macToBytes(s){const p=s.trim().split(/[:\-]/);if(p.length!==6)return null;
+  const b=new Uint8Array(6);for(let i=0;i<6;i++){if(!/^[0-9a-fA-F]{1,2}$/.test(p[i]))return null;
+  b[i]=parseInt(p[i],16);}return b;}
+const bytesToMac=b=>Array.from(b).map(h2).join(":").toUpperCase();
+function addMac(b,n){const o=Uint8Array.from(b);let v=0n;for(const x of o)v=(v<<8n)|BigInt(x);
+  v+=BigInt(n);for(let i=5;i>=0;i--){o[i]=Number(v&0xffn);v>>=8n;}return o;}
+function genMac(oui){const p=oui.trim().split(/[:\-]/).map(x=>parseInt(x,16));
+  while(p.length<6)p.push(RI(256));const b=Uint8Array.from(p.slice(0,6));
+  b[0]&=0xFE;b[0]&=0xFD;return b;}
+function randKey(n=11){const A="abcdefghijkmnpqrstuvwxyz23456789";let s="Bright";
+  for(let i=0;i<n;i++)s+=A[RI(A.length)];return s;}
+const randSerial=()=>"XR1710G"+Array.from({length:10},()=>RI(10)).join("");
+const randSsid=()=>"XR1710G_"+Array.from({length:6},()=>"ABCDEFGHJKLMNPQRSTUVWXYZ23456789"[RI(32)]).join("");
+
+/* 用模板 + 文本段生成 DSD */
+function buildDsd(kv,size=DSD_SIZE){
+  const lines=[];
+  for(const k of DSD_ORDER) if(kv[k]) lines.push(k+"="+kv[k]);
+  const text=new TextEncoder().encode(lines.join("\n")+"\n");
+  let buf;
+  if(TEMPLATE && TEMPLATE.length>=0x1000){
+    buf=Uint8Array.from(TEMPLATE.subarray(0,Math.min(size,TEMPLATE.length)));
+    if(buf.length<size){const t=new Uint8Array(size);t.set(buf);buf=t;}
+    buf.fill(0xFF,0,PH);                    /* 清空文本段与填充区 */
+  }else{
+    buf=new Uint8Array(size).fill(0xFF);
+  }
+  buf.set(text.subarray(0,Math.min(text.length,PH)),0);
+  return {buf,textLen:text.length};
+}
+function buildEnv(kv){
+  const raw=new TextEncoder().encode(kv.map(([k,v])=>k+"="+v).join("\0")+"\0");
+  const blk=new Uint8Array(UENV_BLOCK);
+  if(4+raw.length>UENV_BLOCK) throw new Error("uenv 超出 0x400 字节");
+  blk.set(raw,4);return blk;
+}
+function download(name,bytes){
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(new Blob([bytes],{type:"application/octet-stream"}));
+  a.download=name;document.body.appendChild(a);a.click();
+  setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},800);
+}
+function fillRandom(){
+  const oui=$("oui").value.trim()||"00:58:28";
+  let b=genMac(oui);b[5]&=0xFE;
+  $("wan").value=bytesToMac(b);
+  $("lan").value=bytesToMac(addMac(b,1));
+  $("serial").value=randSerial();
+  $("ssid").value=randSsid();
+  $("wpa").value=randKey(11);
+  $("guest").value=randKey(11);
+  $("wps").value=String(RI(100000000)).padStart(8,"0");
+  refresh();
+}
+function kvNow(){return{
+  admin_password:"admin",admin_username:"admin",
+  wan_mac:$("wan").value.trim(),lan_mac:$("lan").value.trim(),
+  serial_number:$("serial").value.trim(),manufacturer:"Gemtek",fan_id:"sunon_XR1710G",
+  wifi_guest_passphrase:$("guest").value.trim(),wifi_passphrase:$("wpa").value.trim(),
+  wifi_ssid:$("ssid").value.trim(),wifi_wps_pin:$("wps").value.trim()};}
+
+function refresh(){
+  if(!TEMPLATE){$("preview").innerHTML='<span class="badge">模板加载中…</span>';return;}
+  const kv=kvNow(),{buf,textLen}=buildDsd(kv);
+  let warn=[];
+  const w=macToBytes(kv.wan_mac),l=macToBytes(kv.lan_mac);
+  if(!w)warn.push(["err","WAN MAC 格式错误"]);
+  else if(w[0]&1)warn.push(["err","WAN MAC 是组播地址"]);
+  if(!l)warn.push(["err","LAN MAC 格式错误"]);
+  else if(w&&!(l[4]===w[4]&&l[5]===((w[5]+1)&255)))warn.push(["warn","LAN 不是 WAN+1"]);
+  if(!/^XR1710G\d{10}$/.test(kv.serial_number))warn.push(["warn","序列号非原厂格式"]);
+  if((kv.wifi_passphrase||"").length<8)warn.push(["warn","WiFi 密码少于 8 位"]);
+  warn.push(["ok","已套用内置校准段（0x5000 起原样保留）"]);
+  warn.push(["warn","0x1000 加密段留空"]);
+  let html=`<div class="hint">DSD ${buf.length} 字节　文本段 ${textLen} B　校准段 内置模板</div>`;
+  html+=`<table><tr><th>key</th><th>value</th></tr>`;
+  for(const line of new TextDecoder().decode(buf.subarray(0,textLen)).trim().split("\n")){
+    const p=line.indexOf("=");
+    html+=`<tr><td class="mono">${line.slice(0,p)}</td><td class="mono">${line.slice(p+1)}</td></tr>`;
+  }
+  html+="</table>";
+  html+='<div style="margin-top:9px">'+warn.map(([lv,t])=>{
+    const c=lv==="err"?"err":lv==="warn"?"warn":"ok";
+    const i=lv==="err"?"✕":lv==="warn"?"!":"✓";
+    return `<div class="${c}" style="margin:2px 0">${i} ${t}</div>`;}).join("")+"</div>";
+  $("preview").innerHTML=html;
+}
+function generate(){
+  if(!TEMPLATE){$("status").innerHTML='<span class="err">模板还没加载好，请稍等</span>';return;}
+  const kv=kvNow(),w=macToBytes(kv.wan_mac),l=macToBytes(kv.lan_mac);
+  if(!w||!l||(w[0]&1)){$("status").innerHTML='<span class="err">MAC 有问题，已中止</span>';return;}
+  const n=Math.max(1,Math.min(99,parseInt($("count").value,10)||1));
+  const names=[];
+  for(let i=0;i<n;i++){
+    const wan=addMac(w,i*2),lan=addMac(w,i*2+1);
+    const one=Object.assign({},kv,{
+      wan_mac:bytesToMac(wan),lan_mac:bytesToMac(lan),
+      serial_number:(i===0?kv.serial_number:randSerial()),
+      wifi_ssid:(i===0?kv.wifi_ssid:randSsid()),
+      wifi_passphrase:(i===0?kv.wifi_passphrase:randKey(11)),
+      wifi_guest_passphrase:(i===0?kv.wifi_guest_passphrase:randKey(11)),
+      wifi_wps_pin:(i===0?kv.wifi_wps_pin:String(RI(100000000)).padStart(8,"0"))});
+    const tag=one.lan_mac.replace(/:/g,"");
+    download("dsd_"+tag+".bin",buildDsd(one).buf); names.push("dsd_"+tag+".bin");
+    download("uenv_"+tag+".bin",buildEnv([
+      ["baudrate","115200"],["bootdelay","4"],
+      ["bootcmd","flash read 0x600000 0x100000 $loadaddr; bootm"],
+      ["ipaddr","192.168.1.1"],["serverip","192.168.1.10"],
+      ["ethaddr",one.lan_mac],["stdin","serial"],["stdout","serial"],["stderr","serial"],
+      ["soc","an7581"],["vendor","ecnt"],["vendor_name","ECONET Technologies Corp."],
+      ["board","an7581_evb"],["board_name","an7581_evb"],["product_name","xPON ONU"],
+      ["uboot_filename","tcboot.bin"],["ubi.mtd","system"],
+      ["country_code","ff"],["dram_limit","1024M"],["invaild_env","no"]]));
+    names.push("uenv_"+tag+".bin");
+  }
+  $("status").innerHTML='<span class="ok">已生成 '+names.length+' 个文件</span><br>'+
+    names.map(x=>'<span class="badge">'+x+'</span>').join("");
+  $("cmds").textContent=
+`# 1) X 模式恢复 bootloader
+#    发 1_stage1_preloader.bin -> 重启
+#    按住 RESET 上电，提示 Press x to load BL31 + U-Boot FIP 时按 x
+#    发 2_stage2_bl31_uboot.bin -> 重启
+
+# 2) 写本页生成的文件（先传到 0x81800000）
+flash erase 0x400000 0x8000
+flash write 0x400000 0x8000 0x81800000      # DSD
+
+flash erase 0x200000 0x400
+flash write 0x200000 0x400 0x81800000       # uenv
+
+# 3) 重启，进系统检查 MAC / WiFi
+#    iw dev          看 WiFi 接口 MAC
+#    iw phy          看发射功率是否正常
+
+# ImmortalWrt 下（先 cat /proc/mtd 确认分区号）
+mtd write dsd_XXXX.bin  /dev/mtdX
+mtd write uenv_XXXX.bin /dev/mtdY`;
+}
+$("btnRand").onclick=fillRandom;
+$("btnGen").onclick=generate;
+$("ouiPreset").onchange=e=>{
+  if(e.target.value!=="custom"){$("oui").value=e.target.value;fillRandom();}
+};
+for(const id of ["oui","wan","lan","serial","ssid","wpa","guest","wps"])
+  $(id).addEventListener("input",refresh);
+loadTemplate();
+</script>
+</body>
+</html>

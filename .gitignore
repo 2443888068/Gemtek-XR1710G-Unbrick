@@ -1,0 +1,15 @@
+__pycache__/
+*.pyc
+*.pyo
+*.bak
+*~
+out/
+dist/
+build/
+.DS_Store
+Thumbs.db
+# 本机原始分区备份含设备唯一信息（MAC/序列号/WiFi 密码），不要提交
+mtd0*.bin
+dsd_*.bin
+uenv_*.bin
+!bin/dsd_template_cal_only.bin
