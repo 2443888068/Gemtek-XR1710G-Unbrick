@@ -32,14 +32,83 @@ XR1710G 常见两种砖：
 
 ### 情况一：bootloader 坏了（X 模式两阶段） 或 ERROR:BL2: Failed to load image id 3 (-80)
 
+
+第一阶段：X 模式救砖（临时启动 U-Boot）
+当设备无法从 NAND 正常引导时，需通过芯片底层的 BootROM (X 模式) 临时加载引导程序。
+
+准备工作
+串口工具：Tera Term / SecureCRT / picocom（波特率 115200，8N1）
+
+XMODEM 文件：
 ```
-1. 断电，按住 RESET 上电，串口 115200
-2. 按 X（或 x），终端出现 CCCCC
-3. XMODEM 发送 bin/stage1_preloader.bin          → 设备自动重启
-4. 再次断电，按住 RESET 上电
-5. 提示 "Press x to load BL31 + U-Boot FIP" 时按 x
-6. XMODEM 发送 bin/stage2_bl31_uboot.bin         → 设备自动重启
+stage1_preloader.bin（第一阶段引导）
+stage2_bl31_uboot.bin（第二阶段 FIP）
 ```
+
+操作步骤
+进入 X 模式：拔掉电源，按住 Reset 键不放，插上电源。串口终端会显示 Press x。
+
+第一段传输：按下键盘 x，终端出现 CCCC。使用串口工具的 XMODEM 功能发送 stage1_preloader.bin。传输完成后设备会自动重启。
+
+第二段传输：再次断电，按住 Reset 上电。终端出现 Press x to load BL31 + U-Boot FIP 时按 x，出现 CCCC 后，使用 XMODEM 发送 stage2_bl31_uboot.bin。
+
+传输完成后，设备重启，串口终端将出现 ECNT> 提示符。此时设备已临时进入可用的 U-Boot 命令行。
+
+第二阶段：TFTP 固化 Vendor 分区
+在 ECNT> 命令行下，通过网口（TFTP）将 vendor 备份写回 NAND，彻底修复引导链和校准数据。
+```
+⚠️ 核心警告：文件选择原则
+在进行写入操作前，请严格按以下优先级选择 vendor 文件：
+
+最高优先级（必须）：你自己本机之前备份的 vendor_backup.bin（或 mtd0.bin）。
+
+次选（仅在毫无备份时）：同型号设备（XR1710G）备份的 mtd0.vendor.zip（解压后约 6MB）。
+
+为什么？ vendor 分区内的 dsd 包含了每台机器独一无二的 Wi-Fi 校准数据和 MAC 地址。如果刷入别人的 vendor：
+
+Wi-Fi 信号会极差，甚至无法启动无线。
+
+MAC 地址会变成别人的，导致局域网冲突或光猫识别异常。
+```
+准备工作
+网线：连接电脑与路由器 LAN 口。
+
+TFTP 服务器：电脑端开启 TFTP 服务，IP 设为 192.168.1.10。
+
+备份文件：将备好的 vendor_backup.bin（大小 6MB / 0x600000）放入 TFTP 根目录。
+
+操作步骤
+在 ECNT> 提示符下，依次输入以下命令：
+
+
+# 1. 设置设备与 TFTP 服务器 IP
+```
+setenv ipaddr 192.168.1.1
+setenv serverip 192.168.1.10
+```
+
+# 2. 通过 TFTP 将 vendor 备份下载到内存地址 0x89000000
+```
+tftpboot 0x89000000 vendor_backup.bin
+```
+
+# 3. 擦除 NAND 上的 vendor 分区 (起始 0x00000000，长度 0x00600000 即 6MB)
+```
+flash erase 0x00000000 0x00600000
+```
+
+# 4. 将内存中的数据写入 vendor 分区
+```
+flash write 0x00000000 0x00600000 0x89000000
+```
+
+# 5. 重启设备
+```
+reset
+```
+
+结果验证
+执行 reset 后，设备应正常从 NAND 引导并进入 OpenWrt 系统。此时的 vendor 分区内已包含 Preloader、U-Boot、环境变量（UENV）和工厂校准数据（DSD）。
 
 完成后 bootloader 区段（flash `0x0-0x200000`）恢复完好，可以进 U-Boot 命令行。
 
