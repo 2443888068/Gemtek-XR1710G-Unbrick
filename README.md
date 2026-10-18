@@ -5,7 +5,7 @@
 [![Tool](https://img.shields.io/badge/tool-single%20HTML%20file-2ea043)](#)
 [![License](https://img.shields.io/badge/license-MIT-2ea043)](#license)
 
-Bootloader 恢复 + 出厂数据（DSD / uenv）重建工具，**不需要任何原厂备份**。
+Bootloader 恢复 + 出厂数据（DSD / uenv）重建工具
 
 适用于 Gemtek 代工的 Brightspeed **XR1710G**（Airoha AN7581，四核 A53，512 MiB SPI NAND）。
 同一 SoC 的 XG2010G 等机型分区布局相同，方法可通用。
@@ -20,13 +20,10 @@ XR1710G 常见两种砖：
 
 | 情况 | 现象 | 本项目的解法 |
 |---|---|---|
-| **bootloader 坏了** | 完全不开机、串口无输出 | X 模式两阶段镜像（已含 BL1/BL2/BL31/U-Boot + 全套证书） |
-| **BL31 坏了** | 开机设备报错: ERROR:BL2: Failed to load image id 3 (-80) |
-| **dsd 分区炸了** | 能开机但 MAC 全 0 / 序列号丢失 / WiFi 起不来 | 单文件 HTML 生成器，含同型号校准模板 |
+| **bootloader 丢失/损坏** | 完全不开机、串口无输出 | X 模式两阶段镜像（已含 BL1/BL2/BL31/U-Boot + 全套证书） |
+| **BL31 丢失/损坏** | 开机设备报错: ERROR:BL2: Failed to load image id 3 (-80) |
+| **dsd 分区丢失** | 能开机但 MAC 全 0 / 序列号丢失 / WiFi 起不来 | 单文件 HTML 生成器，含同型号校准模板 |
 
-两种都不需要你事先备份过。
-
----
 
 ## 快速开始
 
@@ -112,7 +109,10 @@ reset
 
 完成后 bootloader 区段（flash `0x0-0x200000`）恢复完好，可以进 U-Boot 命令行。
 
-### 情况二：dsd 炸了（生成出厂数据）
+
+
+
+### 情况二：dsd 炸了（生成出厂数据） !!!⚠️⚠️⚠️ 此下面未测试，请提前备份Vendor分区!!!
 
 双击打开 以下链接 直接在浏览器里打开（无需下载）：
 
@@ -270,16 +270,20 @@ PKCS#7 ContentInfo
 
 ## 校验
 
-```bash
+```
+bash Linux
 sha256sum -c SHA256SUMS
+PowerShell
+certutil -hashfile <full_path_to_file> SHA256
 ```
 
 已发布文件的 SHA-256：
 
 ```
-ce6fd734facaa4936eb146af311c62b95b17aba2b23181b3660d9271b6619aea  bin/dsd_template_cal_only.bin
-a0d896b938a9313ee4d2afc5a3e0ae5566bb684e1992232835a7c8ed3d34dc83  bin/stage1_preloader.bin
-f82bfcdd6a43d05591b95a2494b0835b96a5355112a1545416c5d7fdf2b49c2f  bin/stage2_bl31_uboot.bin
+ce6fd734facaa4936eb146af311c62b95b17aba2b23181b3660d9271b6619aea  dsd_template_cal_only.bin
+a0d896b938a9313ee4d2afc5a3e0ae5566bb684e1992232835a7c8ed3d34dc83  stage1_preloader.bin
+f82bfcdd6a43d05591b95a2494b0835b96a5355112a1545416c5d7fdf2b49c2f  stage2_bl31_uboot.bin
+5eb6615404f7fcd41ebcc32c9975f8af8d58522ecb6464a5630037dcf402cf36 mtd0.vendor.zip
 ```
 
 ---
@@ -289,7 +293,6 @@ f82bfcdd6a43d05591b95a2494b0835b96a5355112a1545416c5d7fdf2b49c2f  bin/stage2_bl3
 - `bin/dsd_template_cal_only.bin` **已脱敏**：文本段（MAC/序列号/WiFi 密码）与
   加密段全部覆写为 `0xFF`，仅保留二进制校准段与结构标记
 - 三个 HTML 工具**完全离线**运行，不发起任何网络请求，不收集数据
-- 本仓库**不包含**任何完整的分区备份（那种文件含设备唯一信息，请勿上传分享）
 
 ## 免责声明
 
