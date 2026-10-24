@@ -47,7 +47,7 @@ stage2_bl31_uboot.bin（第二阶段 FIP）
 
 第一段传输：按下键盘 x，终端出现 CCCC。使用串口工具的 XMODEM 功能发送 stage1_preloader.bin。传输完成后设备会自动重启。
 
-第二段传输：再次断电，按住 Reset 上电。终端出现 Press x to load BL31 + U-Boot FIP 时按 x，出现 CCCC 后，使用 XMODEM 发送 stage2_bl31_uboot.bin。
+第二段传输：终端出现 Press x to update firmware 时按 x，出现 CCCC 后，使用 XMODEM 发送 stage2_bl31_uboot.bin。
 
 传输完成后，设备重启，串口终端将出现 ECNT> 提示符。此时设备已临时进入可用的 U-Boot 命令行。
 
