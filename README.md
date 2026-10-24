@@ -51,7 +51,7 @@ stage2_bl31_uboot.bin（第二阶段 FIP）
 
 传输完成后，设备重启，串口终端将出现 ECNT> 提示符。此时设备已临时进入可用的 U-Boot 命令行。
 
-第二阶段：TFTP 固化 Vendor 分区
+第三阶段：TFTP 固化 Vendor 分区
 在 ECNT> 命令行下，通过网口（TFTP）将 vendor 备份写回 NAND，彻底修复引导链和校准数据。
 ```
 ⚠️ 核心警告：文件选择原则
